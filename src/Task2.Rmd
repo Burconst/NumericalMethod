@@ -1,0 +1,237 @@
+---
+knit: (function(input_file, encoding) {
+  out_dir <- '../docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'Task2.html'))})
+title: "Task2"
+output: html_document
+---
+
+```{r input}
+A <- matrix(c(c(7.35272,  0.88255,  -2.270052),
+              c(0.88255,  5.58351,  0.528167),
+              c(-2.27005, 0.528167, 4.430329)), ncol = 3)
+
+b <- c(1, 0, 0)
+```
+
+#### Метод Гаусса
+
+```{r gaus}
+upper_triangular <- function(A) 
+{
+  n = min(ncol(A), nrow(A))
+  for (k in 1:n)
+  {
+    A[k,k:(n+1)] <- A[k,k:(n+1)]/A[k,k]
+    
+    for (i in (k+1):n)
+    {
+      if(i > n) break;
+      tmp <- A[i,k]
+      for (j in k:(n+1))
+      {
+        A[i, j] <- A[i, j] - A[k, j] * tmp         
+      }
+    }
+  }
+  return(A)
+}
+
+gaussian_elimination <- function(A, b, eps=1e-5) 
+{
+  n = ncol(A)
+  Ab <- upper_triangular(matrix(c(A,b), ncol = n+1))
+  
+  x = rep(0, length(b))
+  for (i in n:1)
+  {
+    x[i] = Ab[i,n+1] / Ab[i,i]
+    for (k in (i-1):1)
+    {
+      if((i-1) == 0) break;
+      Ab[k, n+1] <- Ab[k, n+1] - Ab[k, i] * x[i]  
+    }
+  }
+  return(x)
+}
+```
+
+Преобразование исходной системы к системе вида $x=H_Dx+g_D$ , где $H_D=E−D^{−1}A$,$gD=D^{−1}b$. Здесь $D$ — диагональная матрица, у которой на диагонали находятся диагональные элементы матрицы $A$.
+
+```{r tr_to_Hg}
+transform_to_Hg <- function(A, b) 
+{
+  D <- diag(diag(A))
+  H_D <- diag(ncol(A)) - solve(D) %*% A
+  g_D <- solve(D) %*% b
+  
+  H_D_norm <- norm(H_D, "i")
+  return(list(H_D, g_D))
+}
+```
+
+Поиск априорной оценки того k, при котором $||x^*-x_k||_{\infty} < \epsilon, \epsilon = 0.00001$.
+
+```{r apr}
+apriori_iterations_estimation <- function(H, g, eps=1e-5, x_0= matrix(c(0,0,0))) 
+{
+  k = 1
+  while (T) 
+  {
+    error = (norm(H, "i")**k) * norm(x_0, "i") + (norm(H, "i")**k) * norm(g, "i") / (1 - norm(H, "i"))
+    if (error < eps) break;
+    k <- k + 1
+  }
+  return(k)
+}
+```
+
+#### Метод итераций
+
+```{r iter}
+iterations_method <- function(A, b, k, x_0 = matrix(c(0,0,0))) 
+{
+  Hg <- transform_to_Hg(A, b)
+  for (i in 1:k) 
+  {
+    x <- Hg[[1]] %*% x_0 + Hg[[2]]
+    x_0 <- x
+  }
+  return(x)
+}
+
+iterations_method_stats <- function(A, b, x_solution, eps=1e-5, x_0 = matrix(c(0,0,0))) 
+{
+  Hg <- transform_to_Hg(A, b)
+  H <- Hg[[1]]; g <- Hg[[2]]
+  k <- 0
+  x <- x_0
+  while (norm(x_solution - x, 'i') > eps) 
+  {
+    k <- k + 1
+    x_0 <- x
+    x <- iterations_method(A, b, k) 
+  }
+  
+  error <- norm(x_solution - x, "i")
+  aprior_error <- (norm(H, "i")**k) * norm(x_0, "i") + (norm(H, "i")**k) * norm(g, "i") /(1 - norm(H, "i"))
+  prior_error <- norm(H, "i") * norm(x - x_0, "i")/(1 - norm(H, "i"))
+  
+  r <- max(eigen(H)$values)
+  lusternik_solution <- x_0 + (x - x_0) / (1 - r)
+  lusternik_error <- norm(x_solution - lusternik_solution, "i")
+  return(list(iterations = k,error = error, lusternik_error = lusternik_error))
+}
+```
+
+#### Метод Зейделя
+
+```{r seid}
+seidel_method <- function(A, b, k, x_0 = matrix(c(0,0,0), ncol = 1)) 
+{
+  Hg <- transform_to_Hg(A, b)
+  H <- Hg[[1]]; g <- Hg[[2]]
+  H_L <- H; H_R <- H 
+  H_L[which(upper.tri(H,diag = T))] <- 0
+  H_R[which(lower.tri(H,diag = T))] <- 0
+  identity <- diag(ncol(A))
+  for (i in 1:k)
+  {
+    x <- solve(identity - H_L) %*% (H_R %*% x_0)+solve(identity - H_L) %*% g
+    x_0 <- x
+  }
+  return(x)
+}
+
+seidel_method_stats <- function(A, b, x_solution, eps=1e-5, x_0 = matrix(c(0,0,0),ncol = 1))
+{ 
+  Hg <- transform_to_Hg(A, b)
+  H <- Hg[[1]]; g <- Hg[[2]]
+  H_L <- H; H_R <- H 
+  H_L[which(upper.tri(H,diag = T))] <- 0
+  H_R[which(lower.tri(H,diag = T))] <- 0
+  identity <- diag(ncol(A))
+  k <- 0; x <- x_0
+  while (norm(x_solution - x, "i") > eps)
+  {
+    k <- k + 1
+    x_0 <- x
+    x <- seidel_method(A, b, k)
+  }
+  
+  error <- norm(x_solution - x, "i")
+  r <- max(eigen(solve(identity - H_L) %*% H_R)$values)
+  lusternik_solution <- x_0 + (x - x_0) / (1 - r)
+  lusternik_error <- norm(x_solution - lusternik_solution, "i")
+  
+  return(list(iterations = k, error = error, lusternik_error = lusternik_error))
+}
+```
+
+#### Метод верхней релаксации
+
+```{r succ}
+successive_over_relaxation_method <- function(A, b, k, x_0 = matrix(c(0,0,0),ncol = 1)) 
+{
+  Hg <- transform_to_Hg(A, b)
+  H <- Hg[[1]]; g <- Hg[[2]]
+  r <- max(eigen(Hg[[1]])$values)
+  q <- 2/(1+sqrt(1-r^2)); x <- x_0 
+  for (i in 1:k)
+  {
+    for (j in 1:length(x_0))
+    {
+      sum1 <- sum(H[j,1:j] * x[1:j,1])
+      sum2 <- ifelse(j<length(x_0),sum(H[j,(j+1):(length(x_0))] * x_0[(j+1):(length(x_0)),1])
+                                  ,sum(H[j,length(x_0)] * x_0[length(x_0),1])) 
+      x[j,1] <- x_0[j,1] + q * (sum1 + sum2 - x_0[j,1] + g[j,1])
+    }
+    x_0 <- x
+  }
+  return(x)
+}
+
+successive_over_relaxation_method_stats <- function(A, b, x_solution, eps=1e-6,  x_0 = matrix(c(0,0,0),ncol = 1)) 
+{
+  Hg <- transform_to_Hg(A, b)
+  k <- 0; x <- x_0
+  while (norm(x_solution - x, "i") > eps) 
+  {
+    k <- k + 1
+    x_0 <- x
+    x <- successive_over_relaxation_method(A, b, k)
+  }
+  error <- norm(x_solution - x, "i")
+  return(list(iterations = k,error = error))
+}
+```
+
+#### Сравнение методов
+
+```{r res}
+result <- matrix(ncol = 3, nrow = 3)
+rownames(result) <- c("Iterations", "Siedel", "SOR")
+colnames(result) <- c("k", "Error", "Lusternik error")
+
+iter_result <- iterations_method_stats(A, b, gaussian_elimination(A, b) )
+siedel_result <- seidel_method_stats(A, b, gaussian_elimination(A, b) )
+sor_result <- successive_over_relaxation_method_stats(A, b, gaussian_elimination(A, b))
+
+result[1,] <- c(iter_result$iterations, iter_result$error, iter_result$lusternik_error)
+result[2,] <- c(siedel_result$iterations, siedel_result$error, siedel_result$lusternik_error)
+result[3,] <- c(sor_result$iterations, sor_result$error, NA)
+
+result
+```
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,186 @@
+---
+knit: (function(input_file, encoding) {
+  out_dir <- '../docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'Task4.html'))})
+title: "Task4"
+output: html_document
+---
+
+```{r inp}
+a <- 0; b <- 1
+f <- function(x) x + 0.5;
+H <- function(x,y) -0.5*exp((x-0.5)*y^2);
+```
+
+```{r abg}
+get_alphas <- function(n) 
+{
+  sapply(0:(n-1), function(k) { function(x) ((x-0.5)^k)/factorial(k)})
+}
+
+get_bettas <- function(n) 
+{
+  sapply(1:n-1, function(k) { function(y) -0.5*y^(2*k)})
+}
+
+get_gamma <- function(alphas, bettas) 
+{
+  gamma <- matrix(c(1:(length(alphas)*length(bettas))), nrow = length(alphas))
+  for (i in 1:length(bettas)) 
+  {
+    for (j in 1:length(alphas)) 
+    {
+      gamma[i,j] = integrate(function (x) {bettas[[i]](x) * alphas[[j]](x)}, lower = a, upper = b)$value
+    }
+    
+  }
+  return(gamma)
+}
+```
+
+
+```{r get_matr}
+get_A_matrix <- function(gamma)
+{
+  gamma <- -gamma
+  diag(gamma) <- diag(gamma)+1
+  dimm <- min(ncol(gamma),nrow(gamma))
+  return(matrix(gamma,ncol = dimm, nrow = dimm))
+}
+```
+
+```{r getG}
+get_G <- function(D, alphas, bettas) 
+{
+  row_fun <- function(vec, k, x, y) 
+  {
+    sum(vec*alphas[[k]](x)*sapply(bettas, function(fun) {fun(y)}))
+  }
+  return(function(x,y) sum(sapply(1:nrow(D), function(k) row_fun(D[k,], k, x, y))))
+}
+```
+
+```{r getUn}
+get_u_n <- function(n){
+  A_n <- get_A_matrix(get_gamma(get_alphas(n), get_bettas(n)))
+  D_n <- solve(A_n)
+  G_n <- get_G(D_n, get_alphas(n), get_bettas(n))
+  function(x) f(x)+integrate(f = Vectorize(function (y) G_n(x,y)*f(y)), lower = a, upper = b)$value
+}
+```
+
+```{r getdelt}
+get_delta <- function(u_i, u_j,a,b)
+{
+  return(max(abs(u_i(a) - u_j(a)),
+             abs(u_i((a + b) / 2) - u_j((a + b) / 2)),
+             abs(u_i(b) - u_j(b))))
+}
+cat(paste("delta =",get_delta(get_u_n(3), get_u_n(4), a, b)))
+```
+
+```{r res1}
+res_matr <- matrix(c(c((get_u_n(3))(a),(get_u_n(3))((a + b) / 2),(get_u_n(3))(b)),
+                     c((get_u_n(4))(a),(get_u_n(4))((a + b) / 2),(get_u_n(4))(b))),
+                   nrow = 2, byrow = T)
+row.names(res_matr) <- c("u_3", "u_4")
+colnames(res_matr) <- c("a","(a+b)/2","b")
+res_matr
+```
+
+```{r lib}
+#install.packages("rootSolve")
+library(rootSolve)
+```
+
+```{r dd}
+DD <- function(expr,name,order){
+  if(order==1) D(expr,name)
+  else DD(D(expr,name),name,order-1)
+}
+
+get_polynom_legendre <- function(n)
+{
+  if (n == 0)
+  {
+    return(1)
+  }
+  polynom <- function(x) Vectorize(eval(DD(expression((x^2-1)^n),"x",n)))/(2^n*n)
+  return(polynom)  
+}
+```
+
+```{r roots}
+get_roots <- function(n)
+{
+  uniroot.all(get_polynom_legendre(n), lower = -1, upper = 1, tol = 0.00000001)
+}
+```
+
+```{r coeff}
+get_coeffs <- function(n) 
+{
+  x_k <- sort(get_roots(n))
+  return(2*(1- x_k^2)/(n^2*(get_polynom_legendre(n - 1))(x_k)^2)) 
+}
+```
+
+```{r h_}
+H_ <- function(n)
+{
+  result <- function(x,y) 
+  {
+    sum(-0.5*((x-0.5)*y**2)^(0:(n-1))/factorial(0:(n-1)))
+  }
+  return(result)
+}
+```
+
+```{r getD}
+get_new_D <- function(n) 
+{
+  coeffs <- get_coeffs(n)
+  x_k = get_roots(n)
+  D <- diag(n)*0
+  for (j in 1:n)
+  {
+    for (k in 1:n) 
+    {
+      D[j,k] <- (j == k) - coeffs[k]*H_(n)(x_k[j], x_k[k])  
+    }
+  }
+  return(D) 
+}
+```
+
+
+```{r get_g}
+get_g <- function(n) sapply(get_roots(n), f)
+get_Z <- function(n) 
+{
+  new_D = get_new_D(n)
+  g = get_g(n)
+  new_D = solve(new_D)
+  return(new_D %*% g)
+}
+get_u_ <- function(n) 
+{
+  coeffs <- get_coeffs(n)
+  x_k <- get_roots(n)
+  Z <- get_Z(n)
+  return(function(x) sum(Z*coeffs*sapply(x_k, function(y) (H_(n))(x,y)))+f(x))   
+}
+```
+
+```{r res2}
+result <- matrix(ncol = 3, nrow = 4)
+rownames(result) <- paste0(c("u_"),2:5)
+colnames(result) <- c("a","(a+b)/2","b")
+result[,1] <- sapply(sapply(2:5, get_u_), function(f) f(a))
+result[,2] <- sapply(sapply(2:5, get_u_), function(f) f((a+b)/2))
+result[,3] <- sapply(sapply(2:5, get_u_), function(f) f(b))
+result
+```
+

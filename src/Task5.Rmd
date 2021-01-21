@@ -1,0 +1,149 @@
+---
+knit: (function(input_file, encoding) {
+  out_dir <- '../docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'Task5.html'))})
+title: "Task5"
+output: html_document
+---
+
+```{r input}
+a <- -1
+b <- 1
+N <- 10
+h <- (b - a)/N
+
+get_f <- function(x) 1 + x;
+
+get_p <- function(x) 1/(2+x)
+
+get_q <- function(x) 0 * x
+
+get_r <- function(x) cos(x)
+
+get_x <- function(i, h) a + i * h
+```
+
+```{r ABCG}
+get_Ai <- function(n) 
+{
+  h <- (b - a)/n
+  temp_A <- rep(0,n+1)
+  temp_A[2:n] <- -get_p(get_x(1:(n-1) - 1/2, h))/(h^2) - get_q(get_x(1:(n-1), h))/(h^2)
+  return (temp_A)
+}
+
+get_Bi <- function(n) 
+{
+  h <- (b - a)/n
+  temp_B <- rep(-1,n+1)
+  temp_B[2:n] <- -get_p(get_x(1:(n-1) + 1/2, h))/(h^2) - get_p(get_x(1:(n-1) - 1/2, h))/h^2  - get_r(get_x(1:(n-1), h))
+  return(temp_B)
+}
+
+
+get_Ci <- function(n) 
+{
+  h <- (b - a) / n
+  temp_C <- rep(0,n+1)
+  temp_C[2:n] <- -get_p(get_x(1:(n-1) + 1/2, h))/h^2 + get_q(get_x(1:(n-1), h))/h^2
+  return(temp_C)
+}
+
+
+get_Gi <- function(n) 
+{
+  h <- (b - a) / n
+  temp_G <- rep(0,n+1)
+  temp_G[2:n] <- get_f(get_x(1:(n-1), h))
+  return(temp_G)
+}
+```
+
+
+```{r si}
+get_Si <- function(n) 
+{
+  Ai <- get_Ai(n); Bi <- get_Bi(n)
+  Ci <- get_Ci(n); Gi <- get_Gi(n)
+  Si <- rep(Ci[1]/Bi[1],n+1)
+  for(i in 2:(n+1)) 
+  {
+    Si[i] = Ci[i] / (Bi[i] - Ai[i] * Si[i - 1])
+  }
+  return(Si)
+}
+
+get_Ti <- function(n)
+{
+  Ai <- get_Ai(n); Bi <- get_Bi(n)
+  Ci <- get_Ci(n); Gi <- get_Gi(n)
+  Si <- get_Si(n)
+  Ti <- rep(-Gi[1] / Bi[1],n+1)
+  for(i in 2:(n+1)) 
+  {
+    Ti[i] <- (Ai[i] * Ti[i - 1] - Gi[i]) / (Bi[i] - Ai[i] * Si[i - 1])
+  }
+  return(Ti)
+}
+```
+
+
+```{r y}
+get_y <- function(n)
+{
+  S = get_Si(n)
+  T_ = get_Ti(n)
+  y = rep(0,n + 1)
+  y[n+1] = T_[n+1]
+  i = n
+  while(i > 0)
+  {
+    y[i] = S[i] * y[i + 1] + T_[i]
+    i <- i - 1
+  }
+  return(y)
+}
+```
+
+
+```{r res1}
+y_ex <- c(0.00000000, 0.10123790, 0.21424193, 0.33131682, 0.44394042,
+          0.54190782, 0.61131219, 0.63138502, 0.57043991, 0.38161528, 0.00000000)
+
+result <- matrix(c(seq(a,b, length.out = N+1),
+                   get_Ai(N), get_Bi(N), get_Ci(N),
+                   get_Gi(N), get_Si(N), get_Ti(N),
+                   get_y(N), y_ex, abs(get_y(N) - y_ex)), ncol = 10)
+result <- round(result,5)
+colnames(result) <- c("x", "A", "B", "C", "G","S", "T","Y", "Y_ex", "|Y-Y_ex|")
+result
+```
+
+
+```{r rich}
+richardson <- function(n)
+{
+  s <- 2
+  y_n <- get_y(n)
+  y_2n <- get_y(2*n)[c(T,F)]
+  R <- (y_n - y_2n) / (2^s-1)
+  result_y <- y_n + R
+  return(result_y)
+}
+```
+
+```{r res2}
+N <- 20
+result <- matrix(c(seq(a,b, length.out = N/2+1),
+                   richardson(N/2), y_ex, abs(richardson(N/2) - y_ex)), ncol = 4)
+result <- round(result,5)
+colnames(result) <- c("x","Y", "Y_ex", "|Y-Y_ex|")
+result
+```
+
+
+
+
+

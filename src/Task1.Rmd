@@ -1,0 +1,187 @@
+---
+knit: (function(input_file, encoding) {
+  out_dir <- '../docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'Task1.html'))})
+title: "Task1"
+output: html_document
+---
+
+```{r input}
+A <- matrix(c(c(8.29381,0.995516, -0.560617),
+              c(0.995516, 6.298198, 0.595772),
+              c(-0.560617, 0.595772, 4.997407)), ncol = 3)
+
+b = c(1, 0, 0)
+```
+
+Шаблонный метод для схем Гаусса
+
+```{r gaus_t}
+gaussian_T <- function(A, b, eps=1e-5, upp_tri) 
+{
+  n = ncol(A)
+  Ab <- upp_tri(matrix(c(A,b), ncol = n+1))
+  
+  x = rep(0, length(b))
+  for (i in n:1)
+  {
+    x[i] = Ab[i,n+1] / Ab[i,i]
+    for (k in (i-1):1)
+    {
+      if((i-1) == 0) break;
+      Ab[k, n+1] <- Ab[k, n+1] - Ab[k, i] * x[i]  
+    }
+  }
+  return(x)
+}
+```
+
+### Решение системы по схеме Гаусса единственного деления.
+
+```{r gaus1}
+upper_triangular1 <- function(A) 
+{
+  n = min(ncol(A), nrow(A))
+  for (k in 1:n)
+  {
+    A[k,k:(n+1)] <- A[k,k:(n+1)]/A[k,k]
+
+    for (i in (k+1):n)
+    {
+      if(i > n) break;
+      tmp <- A[i,k]
+      for (j in k:(n+1))
+      {
+        A[i, j] <- A[i, j] - A[k, j] * tmp         
+      }
+    }
+  }
+  return(A)
+}
+
+gaussian_elimination <- function(A, b, eps=1e-5)
+{
+  return(gaussian_T(A, b, eps=1e-5, upper_triangular1))
+}
+```
+
+### Решение системы по схеме Гаусса с выбором главного элемента.
+
+```{r gaus2}
+upper_triangular2 <- function(A) 
+{
+  n <- min(ncol(A), nrow(A))
+  for (k in 1:n)
+  {
+    max_elem <- max(abs(A[k:n,k]))
+    max_row <- which(abs(A[,k]) == max_elem)
+    
+    tmp <- A[k,]; A[k,] <- A[max_row,]; A[max_row,] <- tmp
+
+    A[k,k:(n+1)] <- A[k,k:(n+1)]/A[k,k]
+
+    for (i in (k+1):n)
+    {
+      if(i > n) break;
+      tmp <- A[i,k]
+      for (j in k:(n+1))
+      {
+        A[i, j] <- A[i, j] - A[k, j] * tmp         
+      }
+    }
+  }
+  return(A)
+}
+
+gaussian_elimination_choose <- function(A, b, eps=1e-5)
+{
+  return(gaussian_T(A, b, eps=1e-5, upper_triangular2))
+}
+```
+
+### Решение системы, используя $LU$-разложение
+
+```{r LU}
+LU <- function(A) 
+{
+  # Getting matrix shape.
+  n <- ncol(A)
+  # Generating empty matrixes.
+  L <- diag(n)*0; U <- diag(n)*0
+  for (i in 1:n)
+  {
+    for (j in 1:n)
+    {
+      L[j,i] <- A[j,i] - sum(L[j,]*U[,i]) 
+    }
+    for (j in 1:n)
+    {
+      U[i,j] = (A[i,j] - sum(L[i,] * U[,j])) / L[i,i] 
+    }
+  }
+  return(list(L,U))
+}
+
+LU_system_solution <- function(A, b)
+{
+  LU <- LU(A)
+  y <- solve(LU[[1]], b)
+  x <- solve(LU[[2]], y)
+  return(x)
+}
+```
+
+### Поиск обратной матрицы
+
+```{r inv_matr}
+inverse_matrix <- function(A){
+  n <- ncol(A); LU <- LU(A)
+  I <- diag(n)
+  X <- solve(LU[[1]] %*% LU[[2]], I)
+  return(X)
+}
+```
+
+### Тестирование
+
+Поиск обратной матрицы.
+Матрица $A^{−1}$
+
+```{r t_inv}
+inverse_matrix(A)
+```
+
+Произведение $A$ и $A^{−1}$
+
+```{r mult}
+A %*% inverse_matrix(A)
+```
+
+Решение системы по схеме Гаусса единственного деления.
+
+```{r gaus}
+cat(gaussian_elimination(A,b))
+```
+
+Решение системы по схеме Гаусса с выбором главного элемента.
+
+```{r gaus_1}
+cat(gaussian_elimination_choose(A, b))
+```
+
+Решение системы, используя $LU$-разложение
+
+```{r gaus_2}
+cat(LU_system_solution(A, b))
+```
+
+
+
+
+
+
+
+
+

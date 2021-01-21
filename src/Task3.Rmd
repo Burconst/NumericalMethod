@@ -1,0 +1,134 @@
+---
+knit: (function(input_file, encoding) {
+  out_dir <- '../docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'Task3.html'))})
+title: "Task3"
+output: html_document
+---
+
+```{r input}
+eps <- 0.000001
+A <- matrix(c(c(2.457645, 0.43243, 1.32405),
+              c(0.43243, 0.531332, 0.999234),
+              c(1.32405, 0.999234, 2.12413)),
+            ncol = 3)
+N <- min(nrow(A), ncol(A))
+A
+```
+
+
+```{r rotA}
+rotateA <- function(A, c, s, ik, jk) 
+{
+  Ak <- A
+  Ak[ik, ik] <- (c^2)*A[ik, ik] + 2*c*s*A[ik, jk] + (s^2)*A[jk, jk]
+  Ak[jk, jk] <- (s^2)*A[ik, ik] - 2*c*s*A[ik, jk] + (c^2)*A[jk, jk]
+  Ak[ik, jk] <- ((c^2) - (s^2))*A[ik, jk] + c*s*(A[jk, jk] - A[ik, ik])
+  Ak[jk, ik] <- Ak[ik, jk]
+  Ak[c(-ik,-jk), ik] <- c * A[c(-ik,-jk), ik] + s * A[c(-ik,-jk), jk]
+  Ak[ik, c(-ik,-jk)] <- c * A[c(-ik,-jk), ik] + s * A[c(-ik,-jk), jk]
+  Ak[c(-ik,-jk), jk] <- -s * A[c(-ik,-jk), ik] + c * A[c(-ik,-jk), jk]
+  Ak[jk, c(-ik,-jk)] <- -s * A[c(-ik,-jk), ik] + c * A[c(-ik,-jk), jk]
+  return(Ak)
+}
+```
+
+
+```{r rotX}
+rotateX <- function(X, c, s, ik, jk) 
+{
+  Xk <- X
+  Xk[,ik] <- c * X[,ik] + s * X[,jk]
+  Xk[,jk] <- -s * X[,ik] + c * X[,jk]
+  return(Xk)
+}
+```
+
+
+```{r jacob}
+jacobiMethod <- function(N, A, eps) 
+{
+  X <- diag(1,N)
+  k <- 0
+  while (T) 
+  {
+    ik <- 1; jk <- 2
+    ind <- upper.tri(A)
+    ik <- which(abs(A) == max(abs(A[ind])),arr.ind=TRUE)[1]
+    jk <- which(abs(A) == max(abs(A[ind])),arr.ind=TRUE)[2]
+    if(abs(A[ik, jk]) < eps) 
+    {
+      break
+    }
+    D <- sqrt((A[ik, ik] - A[jk, jk])^2 + 4*(A[ik, jk]^2))
+    c <- sqrt((1 + abs(A[ik, ik] - A[jk, jk]) / D) / 2)
+    s <- sign(A[ik, jk] * (A[ik, ik] - A[jk, jk])) * sqrt((1 - abs(A[ik, ik] - A[jk, jk]) / D) / 2)
+    k <- k + 1
+    A <- rotateA(A, c, s, ik, jk)
+    X <- rotateX(X, c, s, ik, jk)
+  }
+  t1 <- matrix(diag(A),ncol = 3,nrow = 3)
+  t2 <- matrix(diag(A),ncol = 3,nrow = 3, byrow = T)
+  lambda <- A/(t1 - t2)
+  lambda[lambda == Inf] <- 0
+  lambda <- apply(lambda,1,sum)
+  lambda <- lambda + diag(A)
+  return(list(values = lambda, vectors = X))
+}
+```
+
+```{r res1}
+real_eigenvalues <- sort(eigen(A)$values)
+jacobi_eigenvalues <- sort(jacobiMethod(N, A, eps)$values)
+
+res <- matrix(c(real_eigenvalues,jacobi_eigenvalues,abs(jacobi_eigenvalues - real_eigenvalues)), ncol = 3)
+colnames(res) <- c("Real", "Jacobi", "Error")
+res
+```
+
+
+```{r res2}
+real_eigenvectors <- eigen(A)$vectors
+jacobi_eigenvectors <- -jacobiMethod(N, A, eps)$vectors[,c(1,3,2)]
+```
+
+
+```{r res3}
+colnames(real_eigenvectors) <- c("v1","v2","v3")
+real_eigenvectors
+```
+
+
+```{r res4}
+colnames(jacobi_eigenvectors) <- c("v1","v2","v3")
+jacobi_eigenvectors
+```
+
+
+```{r errors}
+abs(real_eigenvectors-jacobi_eigenvectors)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
