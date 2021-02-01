@@ -14,6 +14,6 @@ navbar:
       href: Task5.html
 output:
   html_document:
-    theme: sandstone
-    highlight: tango
+    theme: flatly
+    highlight: breezedark
   
