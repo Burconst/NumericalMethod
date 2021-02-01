@@ -4,7 +4,7 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'Task4.html'))})
-title: "Task4"
+title: "Численное решение интегрального уравнения Фредгольма второго рода"
 output: html_document
 ---
 

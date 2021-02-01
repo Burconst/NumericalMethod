@@ -4,7 +4,7 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'Task5.html'))})
-title: "Task5"
+title: "Разностный метод решения краевой задачи для обыкновенного дифференциального уравнения второго порядка. Метод прогонки"
 output: html_document
 ---
 

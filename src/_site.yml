@@ -1,0 +1,19 @@
+name: "Numerical Methods"
+navbar:
+  title: "Numerical Methods"
+  left:
+    - text: "Task1"
+      href: index.html
+    - text: "Task2"
+      href: Task2.html
+    - text: "Task3"
+      href: Task3.html
+    - text: "Task4"
+      href: Task4.html
+    - text: "Task5"
+      href: Task5.html
+output:
+  html_document:
+    theme: sandstone
+    highlight: tango
+  

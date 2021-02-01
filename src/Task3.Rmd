@@ -4,7 +4,7 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'Task3.html'))})
-title: "Task3"
+title: "Метод вращений (Якоби) решения полной проблемы собственных значений и векторов матрицы"
 output: html_document
 ---
 
