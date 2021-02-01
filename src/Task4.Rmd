@@ -90,7 +90,7 @@ colnames(res_matr) <- c("a","(a+b)/2","b")
 res_matr
 ```
 
-```{r lib}
+```{r lib, warning=F, message=F}
 #install.packages("rootSolve")
 library(rootSolve)
 ```
@@ -174,7 +174,7 @@ get_u_ <- function(n)
 }
 ```
 
-```{r res2}
+```{r res2, warning=F, message=F}
 result <- matrix(ncol = 3, nrow = 4)
 rownames(result) <- paste0(c("u_"),2:5)
 colnames(result) <- c("a","(a+b)/2","b")
